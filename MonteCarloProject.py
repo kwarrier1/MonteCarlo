@@ -32,7 +32,7 @@ def user_info():
     else:
         print("Invalid flag, restarting program")
         user_info()
-print(datetime.datetime.today())
+
 user_info()
 
 # Finds present value of an European call option according to the Black Scholes formula    
