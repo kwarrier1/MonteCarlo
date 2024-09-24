@@ -14,6 +14,7 @@ N = 10          # number of time steps
 M = 1000        # number of simulations
 T = ((datetime.date(2024,7,26)-datetime.date(2024,7,5)).days+1) / 365           # Expires July 26th
 
+# Real front-end in progress...
 def user_info():
     print("European Call Option Price Calculator")
     flag = input("Use predetermined values? (Y/N) ")
