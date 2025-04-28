@@ -1,67 +1,87 @@
-# Monte Carlo Simulation for European Call Option
-# Author: Keshav Warrier
-# Inspiration from QuantPy YouTube channel
 import numpy as np
-import pandas as pd
 from scipy.stats import norm
-import datetime
 
-S = 232.98      # stock price
-K = 240         # strike
-vol = 0.2219    # implied vol
-r = 0.043       # rfr
-N = 10          # number of time steps
-M = 1000        # number of simulations
-T = ((datetime.date(2024,7,26)-datetime.date(2024,7,5)).days+1) / 365           # Expires July 26th
+# Black-Scholes formula for European call and put options
+def get_bs_price(S, K, T, r, vol, option_type="call"):
+    """
+    Calculate the price of a European option using the Black-Scholes formula.
 
-# Real front-end in progress...
-def user_info():
-    print("European Call Option Price Calculator")
-    flag = input("Use predetermined values? (Y/N) ")
-    if (flag == "N"):
-        global S, K, vol, M, T
-        S = int(input("Enter stock price ($): "))
-        K = int(input("Enter strike price ($): "))
-        vol = float(input("Enter implied volatility (% in decimal form): "))
-        M = int(input("Number of simulations: "))
-        expStr = input("Expiration date (year-month-date): ")
-        year, month, date = map(int, expStr.split("-"))
-        exp = datetime.date(year, month, date)
-        T = ((exp-datetime.date.today()).days + 1) / 365
-    elif (flag == "Y"):
-        print("Starting simulation...")
+    Parameters:
+        S (float): Current stock price
+        K (float): Strike price
+        T (float): Time to expiration (in years)
+        r (float): Risk-free interest rate
+        vol (float): Volatility (standard deviation of stock returns)
+        option_type (str): "call" or "put"
+
+    Returns:
+        float: Option price
+    """
+    d1 = (np.log(S / K) + (r + vol**2 / 2) * T) / (vol * np.sqrt(T))
+    d2 = d1 - vol * np.sqrt(T)
+    
+    if option_type == "call":
+        return S * norm.cdf(d1) - np.exp(-r * T) * K * norm.cdf(d2)
+    elif option_type == "put":
+        return np.exp(-r * T) * K * norm.cdf(-d2) - S * norm.cdf(-d1)
     else:
-        print("Invalid flag, restarting program")
-        user_info()
+        raise ValueError("Invalid option type. Use 'call' or 'put'.")
 
-user_info()
+# Monte Carlo simulation for European call and put options
+def get_MC_sim(S, K, T, r, vol, N, M, option_type="call"):
+    """
+    Calculate the price of a European option using Monte Carlo simulation.
 
-# Finds present value of an European call option according to the Black Scholes formula    
-def get_bs_price(S, K, T, r, vol):
-    d1 = (np.log(S/K) + (r + vol**2/2) * T) / (vol * np.sqrt(T))
-    d2 = (np.log(S/K) + (r - vol**2/2) * T) / (vol * np.sqrt(T))
-    bs_price = S * norm.cdf(d1, 0, 1) - np.exp(-r*T)*K*norm.cdf(d2, 0, 1)
-    return bs_price
+    Parameters:
+        S (float): Current stock price
+        K (float): Strike price
+        T (float): Time to expiration (in years)
+        r (float): Risk-free interest rate
+        vol (float): Volatility (standard deviation of stock returns)
+        N (int): Number of time steps
+        M (int): Number of simulations
+        option_type (str): "call" or "put"
 
-# Monte Carlo
-def get_MC_sim(S, K, T, r, vol):
-    dt = T/N                                                                                  # change in time
-    nudt = (r - 0.5*vol**2)*dt                                                                # drift term calculation
-    volsdt = vol * np.sqrt(dt)                                                                # volatility term (vol * change in brownian variable)
-    lnS = np.log(S)                                                                           # Ito calculus uses ln of stock price
+    Returns:
+        tuple: (Option price, Standard error)
+    """
+    dt = T / N
+    nudt = (r - 0.5 * vol**2) * dt
+    volsdt = vol * np.sqrt(dt)
+    lnS = np.log(S)
 
-    X = np.random.normal( size = (N, M))                                                      # matrix of size time steps x number of simulations
-    dlnSt = nudt + volsdt*X                                                                   # new matrix for change in lnSt
-    lnSt = lnS + np.cumsum(dlnSt, axis = 0)                                                   # sum the changes along each path, and add the natural log of the original price
-    endPrices = np.exp(lnSt)                                                                  # reverting end price
-    endValues = np.maximum(0, endPrices - K)                                                  # value of call is equal to the max of 0 and the end price - strike
-    callFV = np.sum(endValues[-1]) / M                                                        # average all simulations to find the future call value
-    callPV = callFV * np.exp(-r*T)                                                            # present value of call
+    X = np.random.normal(size=(N, M))
+    dlnSt = nudt + volsdt * X
+    lnSt = lnS + np.cumsum(dlnSt, axis=0)
+    endPrices = np.exp(lnSt)
 
-    sx = np.sqrt(np.sum((endValues[-1] - callFV) ** 2) / ( M - 1))                            # standard deviation of x, which is the call value
-    SE = sx / np.sqrt(M)                                                                      # standard error calculation
-    return callPV, SE
+    if option_type == "call":
+        endValues = np.maximum(0, endPrices[-1] - K)
+    elif option_type == "put":
+        endValues = np.maximum(0, K - endPrices[-1])
+    else:
+        raise ValueError("Invalid option type. Use 'call' or 'put'.")
 
-callPV, SE = get_MC_sim(S, K, T, r, vol)
-print("Monte Carlo evaluation of call option: ${0} with SE {1}".format(np.round(callPV, 2), np.round(SE, 2)))
-print("Black Scholes evaluation of call option: ${0}".format(np.round(get_bs_price(S, K, T, r, vol), 2)))
+    optionFV = np.mean(endValues)
+    optionPV = optionFV * np.exp(-r * T)
+
+    sx = np.sqrt(np.sum((endValues - optionFV) ** 2) / (M - 1))
+    SE = sx / np.sqrt(M)
+    return optionPV, SE
+
+# Example usage
+S = 232.98  # Stock price
+K = 240     # Strike price
+T = 0.1     # Time to expiration (in years)
+r = 0.043   # Risk-free rate
+vol = 0.2219  # Volatility
+N = 100     # Number of time steps
+M = 1000    # Number of simulations
+
+callPV, callSE = get_MC_sim(S, K, T, r, vol, N, M, option_type="call")
+putPV, putSE = get_MC_sim(S, K, T, r, vol, N, M, option_type="put")
+
+print(f"Monte Carlo Call Option Price: ${callPV:.2f} with SE {callSE:.2f}")
+print(f"Monte Carlo Put Option Price: ${putPV:.2f} with SE {putSE:.2f}")
+print(f"Black-Scholes Call Option Price: ${get_bs_price(S, K, T, r, vol, option_type='call'):.2f}")
+print(f"Black-Scholes Put Option Price: ${get_bs_price(S, K, T, r, vol, option_type='put'):.2f}")
