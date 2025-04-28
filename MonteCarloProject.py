@@ -28,7 +28,7 @@ def get_bs_price(S, K, T, r, vol, option_type="call"):
         raise ValueError("Invalid option type. Use 'call' or 'put'.")
 
 # Monte Carlo simulation for European call and put options
-def get_MC_sim(S, K, T, r, vol, N, M, option_type="call"):
+def get_MC_sim(S, K, T, r, vol, N, M, option_type="call", return_paths=False):
     """
     Calculate the price of a European option using Monte Carlo simulation.
 
@@ -41,6 +41,7 @@ def get_MC_sim(S, K, T, r, vol, N, M, option_type="call"):
         N (int): Number of time steps
         M (int): Number of simulations
         option_type (str): "call" or "put"
+        return_paths (bool): whether to return the paths of the sim
 
     Returns:
         tuple: (Option price, Standard error)
@@ -67,9 +68,12 @@ def get_MC_sim(S, K, T, r, vol, N, M, option_type="call"):
 
     sx = np.sqrt(np.sum((endValues - optionFV) ** 2) / (M - 1))
     SE = sx / np.sqrt(M)
-    return optionPV, SE
+    if return_paths:
+        return optionPV, SE, endPrices
+    else:
+        return optionPV, SE
 
-# Example usage
+"""# Example usage
 S = 232.98  # Stock price
 K = 240     # Strike price
 T = 0.1     # Time to expiration (in years)
@@ -84,4 +88,4 @@ putPV, putSE = get_MC_sim(S, K, T, r, vol, N, M, option_type="put")
 print(f"Monte Carlo Call Option Price: ${callPV:.2f} with SE {callSE:.2f}")
 print(f"Monte Carlo Put Option Price: ${putPV:.2f} with SE {putSE:.2f}")
 print(f"Black-Scholes Call Option Price: ${get_bs_price(S, K, T, r, vol, option_type='call'):.2f}")
-print(f"Black-Scholes Put Option Price: ${get_bs_price(S, K, T, r, vol, option_type='put'):.2f}")
+print(f"Black-Scholes Put Option Price: ${get_bs_price(S, K, T, r, vol, option_type='put'):.2f}")"""
